@@ -119,7 +119,9 @@ def load_fig(ext_figure):
     # flag variable to disable saving the generated code to the file (can be saved only as image (*.png, *.jpg, *.pdf))
     global disable_writing_to_file
     disable_writing_to_file = True
-
+    if (ext_figure.get_size_inches() > [8,8]).any():
+        ext_figure.set_figwidth(8)
+        ext_figure.set_figheight(8)
     swallow_get_exceptions()
 
     if app is None:
@@ -131,10 +133,9 @@ def load_fig(ext_figure):
 
     plt.keys_for_lines = keys_for_lines
 
-    fig = plt.figure(force_add=True)
+    fig = plt.figure(1, force_add=True)
     convertFromPyplot(ext_figure, fig)
     plt.close(ext_figure)
-
     show()
 
 def show(hide_window: bool = False):
@@ -161,6 +162,8 @@ def show(hide_window: bool = False):
         window.update()
         # and show it
         if hide_window is False:
+            if disable_writing_to_file:
+                plt.close() # Close other figure windows if loaded
             window.show()
     if hide_window is False:
         # execute the application
@@ -703,7 +706,8 @@ class PlotWindow(QtWidgets.QWidget):
         self.canvas_wrapper_layout.setContentsMargins(0, 0, 0, 0)
         self.canvas_container.setLayout(self.canvas_wrapper_layout)
 
-        self.canvas_container.setStyleSheet("background:blue")
+        #self.canvas_container.setStyleSheet("background:blue")
+        self.canvas_container.setStyleSheet("background:white")
 
         self.x_scale = QtWidgets.QLabel(self.canvas_canvas)
         self.y_scale = QtWidgets.QLabel(self.canvas_canvas)
@@ -742,6 +746,11 @@ class PlotWindow(QtWidgets.QWidget):
             openAct.setShortcut("Ctrl+I")
             openAct.triggered.connect(self.actionSaveImage)
             fileMenu.addAction(openAct)
+
+        openAct = QtWidgets.QAction("Fit Screen", self)
+        openAct.triggered.connect(self.fit)
+        openAct.setShortcut("Ctrl+D")
+        fileMenu.addAction(openAct)
 
         openAct = QtWidgets.QAction("Exit", self)
         openAct.triggered.connect(self.close)
@@ -823,6 +832,9 @@ class PlotWindow(QtWidgets.QWidget):
         self.colorWidget = ColorChooserWidget(self, self.canvas)
         self.colorWidget.setMaximumWidth(150)
         self.layout_main.addWidget(self.colorWidget)
+
+    def fit(self):
+        self.fitToView(True)
 
     def rasterize(self, rasterize: bool):
         """ convert the figur elements to an image """
@@ -1041,9 +1053,13 @@ class PlotWindow(QtWidgets.QWidget):
         self.fitted_to_view = True
         if change_dpi:
             w, h = self.canvas.get_width_height()
-            factor = min((self.canvas_canvas.width() - 30) / w, (self.canvas_canvas.height() - 30) / h)
-            self.fig.set_dpi(self.fig.get_dpi() * factor)
-            self.fig.canvas.draw()
+            try:
+                factor = min((self.canvas_canvas.width() - 30) / w, (self.canvas_canvas.height() - 30) / h)
+                self.fig.set_dpi(self.fig.get_dpi() * factor)
+                self.fig.canvas.draw()
+            except:
+                self.fig.set_dpi(1)
+                return
 
             self.canvas.updateGeometry()
             w, h = self.canvas.get_width_height()
@@ -1174,3 +1190,4 @@ class PlotWindow(QtWidgets.QWidget):
                 else:
                     self.actionSaveImage()
                 # app.clipboard().setText("\r\n".join(output))
+        plt.close()
