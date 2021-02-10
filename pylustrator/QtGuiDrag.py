@@ -63,6 +63,9 @@ def initialize(use_global_variable_names=False):
     """
     global app, keys_for_lines, old_pltshow, old_pltfigure, setting_use_global_variable_names
 
+    global disable_writing_to_file
+    disable_writing_to_file = False
+
     setting_use_global_variable_names = use_global_variable_names
 
     swallow_get_exceptions()
@@ -96,6 +99,43 @@ def initialize(use_global_variable_names=False):
         convertFromPyplot(fig_old, fig)
         plt.close(fig_old)
 
+def load_fig(ext_figure):
+    """
+    Load and edit matplotlib figure.
+
+    example:
+    # Generate one figure
+    x = np.arange(0,100)
+    y = np.random.random(100)
+    fig = plt.figure()
+    plt.plot(x,y)
+
+    # Edit figure
+    pylustrator.load_fig(fig)
+    """
+    global app, keys_for_lines, old_pltshow, old_pltfigure, setting_use_global_variable_names
+    setting_use_global_variable_names = False
+    
+    # flag variable to disable saving the generated code to the file (can be saved only as image (*.png, *.jpg, *.pdf))
+    global disable_writing_to_file
+    disable_writing_to_file = True
+
+    swallow_get_exceptions()
+
+    if app is None:
+        app = QtWidgets.QApplication(sys.argv)
+    old_pltshow = plt.show
+    old_pltfigure = plt.figure
+    plt.figure = figure
+    patchColormapsWithMetaInfo()
+
+    plt.keys_for_lines = keys_for_lines
+
+    fig = plt.figure(force_add=True)
+    convertFromPyplot(ext_figure, fig)
+    plt.close(ext_figure)
+
+    show()
 
 def show(hide_window: bool = False):
     """ the function overloads the matplotlib show function.
@@ -697,10 +737,11 @@ class PlotWindow(QtWidgets.QWidget):
         openAct.triggered.connect(self.actionSave)
         fileMenu.addAction(openAct)
 
-        openAct = QtWidgets.QAction("Save &Image...", self)
-        openAct.setShortcut("Ctrl+I")
-        openAct.triggered.connect(self.actionSaveImage)
-        fileMenu.addAction(openAct)
+        if not disable_writing_to_file:
+            openAct = QtWidgets.QAction("Save &Image...", self)
+            openAct.setShortcut("Ctrl+I")
+            openAct.triggered.connect(self.actionSaveImage)
+            fileMenu.addAction(openAct)
 
         openAct = QtWidgets.QAction("Exit", self)
         openAct.triggered.connect(self.close)
@@ -797,12 +838,17 @@ class PlotWindow(QtWidgets.QWidget):
 
     def actionSave(self):
         """ save the code for the figure """
-        self.fig.change_tracker.save()
+        #self.fig.change_tracker.save()
+        if not disable_writing_to_file: 
+            self.fig.change_tracker.save()
+
         if getattr(self.fig, "_last_saved_figure", None):
             if os.path.splitext(self.fig._last_saved_figure)[1] == ".pdf":
                 self.fig.savefig(self.fig._last_saved_figure, dpi=300)
             else:
                 self.fig.savefig(self.fig._last_saved_figure)
+        else:
+            if disable_writing_to_file: self.actionSaveImage()
 
     def actionSaveImage(self):
         """ save figure as an image """
@@ -1122,5 +1168,9 @@ class PlotWindow(QtWidgets.QWidget):
             if reply == QtWidgets.QMessageBox.Cancel:
                 event.ignore()
             if reply == QtWidgets.QMessageBox.Yes:
-                self.fig.change_tracker.save()
+                #self.fig.change_tracker.save()
+                if not disable_writing_to_file:
+                    self.fig.change_tracker.save()
+                else:
+                    self.actionSaveImage()
                 # app.clipboard().setText("\r\n".join(output))
