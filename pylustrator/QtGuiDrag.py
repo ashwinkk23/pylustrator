@@ -162,8 +162,8 @@ def show(hide_window: bool = False):
         window.update()
         # and show it
         if hide_window is False:
-            if disable_writing_to_file:
-                plt.close() # Close other figure windows if loaded
+            #if disable_writing_to_file:
+                #plt.close() # Close other figure windows if loaded
             window.show()
     if hide_window is False:
         # execute the application
@@ -1059,7 +1059,7 @@ class PlotWindow(QtWidgets.QWidget):
                 self.fig.canvas.draw()
             except:
                 self.fig.set_dpi(1)
-                return
+                self.fig.canvas.draw()
 
             self.canvas.updateGeometry()
             w, h = self.canvas.get_width_height()
